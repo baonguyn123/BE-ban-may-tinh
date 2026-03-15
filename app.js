@@ -7,9 +7,11 @@ var logger = require('morgan');
 var mongoose = require('mongoose')
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var cors = require('cors');
 
 var app = express();
 
+app.use(cors());
 app.use(methodOverride('_method'));
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -37,7 +39,7 @@ app.use('/api/roles', roleRouter);
 app.use('/api/categories', categoryRouter);
 app.use('/api/computers', computerRouter);
 app.use('/api/cart', cartRouter);
- app.use('/api/orders', orderRouter);
+app.use('/api/orders', orderRouter);
 
 mongoose.connect('mongodb://localhost:27017/may_tinh');
 mongoose.connection.on('connected', function () {
