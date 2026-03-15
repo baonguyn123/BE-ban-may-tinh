@@ -13,6 +13,7 @@ router.put('/:orderId/cancel', authMiddleware, orderController.cancelOrder);
 // Các route chỉ admin có thể truy cập
 router.get('/all', authMiddleware, authorize('admin'), orderController.getAllOrders);
 router.put('/:orderId/status', authMiddleware, authorize('admin'), orderController.updateOrderStatus);
+router.get('/:orderId/detailadmin', authMiddleware, authorize('admin'), orderController.getOrderDetailAdmin);
 router.get('/stats/overview', authMiddleware, authorize('admin'), orderController.getOrderStats);
 
 module.exports = router;

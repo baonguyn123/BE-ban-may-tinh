@@ -15,6 +15,10 @@ const OrderItem = new Schema({
     image: {
         type: String
     },
+      productName: {
+        type: String,
+        required: true
+    },
 
     order: {
         type: mongoose.Schema.Types.ObjectId,

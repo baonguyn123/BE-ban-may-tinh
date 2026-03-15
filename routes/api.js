@@ -361,3 +361,143 @@
 //         "__v": 0
 //     }
 // ]
+
+
+//lấy chi tiết order cho admin http://localhost:3000/api/orders/69b401da7f419526f6bdb787/detailadmin
+
+// {
+//     "order": {
+//         "_id": "69b401da7f419526f6bdb787",
+//         "totalAmount": 182040000,
+//         "status": "DELIVERED",
+//         "shippingAddress": "thành phố Biên Hòa, Đồng Nai",
+//         "phone": "0853772210",
+//         "user": {
+//             "_id": "69b229645a3da422fcd5a15b",
+//             "email": "bonvipro123z@gmail.com",
+//             "fullname": "Trịnh Nguyễn Bảo Nguyên"
+//         },
+//         "orderDate": "2026-03-13T12:23:54.207Z",
+//         "createdAt": "2026-03-13T12:23:54.214Z",
+//         "updatedAt": "2026-03-13T12:59:58.766Z",
+//         "__v": 0
+//     },
+//     "orderItem": [
+//         {
+//             "_id": "69b401da7f419526f6bdb789",
+//             "quantity": 2,
+//             "price": 60680000,
+//             "image": "1773208587574-Gaming.jpg",
+//             "order": "69b401da7f419526f6bdb787",
+//             "computer": {
+//                 "_id": "69b1040bcfd4bdcab5396096",
+//                 "name": "PC TTG GAMING i5 14600KF - RTX 5080 16GB (ALL NEW - Bảo hành 36 tháng) (Nâng cấp lên RAM 32GB DDR5_1 - SSD 500GB - Tản nhiệt khí)",
+//                 "price": 60680000,
+//                 "image": "1773208587574-Gaming.jpg",
+//                 "slug": "pc-ttg-gaming-i5-14600kf-rtx-5080-16gb-all-new-bao-hanh-36-thang-nang-cap-len-ram-32gb-ddr5_1-ssd-500gb-tan-nhiet-khi"
+//             },
+//             "__v": 0,
+//             "totalPrice": 121360000
+//         },
+//         {
+//             "_id": "69b401da7f419526f6bdb78a",
+//             "quantity": 1,
+//             "price": 60680000,
+//             "image": "1773208754596-gaming 2.jpg",
+//             "order": "69b401da7f419526f6bdb787",
+//             "computer": {
+//                 "_id": "69b104b2cfd4bdcab539609a",
+//                 "name": "PC TTG GAMING i5 14600KF - RTX 5080 16GB (ALL NEW - Bảo hành 36 tháng) (Nâng cấp lên RAM 32GB DDR5_1 - SSD 500GB - Tản nhiệt khí)",
+//                 "price": 60680000,
+//                 "image": "1773208754596-gaming 2.jpg",
+//                 "slug": "pc-ttg-gaming-i5-14600kf-rtx-5080-16gb-all-new-bao-hanh-36-thang-nang-cap-len-ram-32gb-ddr5_1-ssd-500gb-tan-nhiet-khi-hCJZooVM4"
+//             },
+//             "__v": 0,
+//             "totalPrice": 60680000
+//         }
+//     ]
+// }
+
+// lấy tất cả message mà user và admin đã nhắn vs nhau có thông tin sản phẩm mà user đã hỏi
+//http://localhost:3000/api/chats/messages/69b65a02885a2a14005b7a53
+// {
+//     "message": [
+//         {
+//             "_id": "69b65a61885a2a14005b7a55",
+//             "content": "Xin chào shop",
+//             "senderRole": "user",
+//             "chat": "69b65a02885a2a14005b7a53",
+//             "createdAt": "2026-03-15T07:06:09.351Z",
+//             "updatedAt": "2026-03-15T07:06:09.351Z",
+//             "__v": 0
+//         },
+//         {
+//             "_id": "69b65ae0885a2a14005b7a5a",
+//             "content": "Chào bạn, có chuyện gì không ạ ",
+//             "senderRole": "admin",
+//             "chat": "69b65a02885a2a14005b7a53",
+//             "createdAt": "2026-03-15T07:08:16.511Z",
+//             "updatedAt": "2026-03-15T07:08:16.511Z",
+//             "__v": 0
+//         },
+//         {
+//             "_id": "69b65b18885a2a14005b7a5d",
+//             "content": "Shop cho mình hỏi cái này ạ",
+//             "senderRole": "user",
+//             "chat": "69b65a02885a2a14005b7a53",
+//             "createdAt": "2026-03-15T07:09:12.550Z",
+//             "updatedAt": "2026-03-15T07:09:12.550Z",
+//             "__v": 0
+//         },
+//         {
+//             "_id": "69b664cad6065769b9235cd9",
+//             "content": "Sản phẩm này còn không",
+//             "senderRole": "user",
+//             "chat": "69b65a02885a2a14005b7a53",
+//             "computer": {
+//                 "_id": "69b1040bcfd4bdcab5396096",
+//                 "name": "PC TTG GAMING i5 14600KF - RTX 5080 16GB (ALL NEW - Bảo hành 36 tháng) (Nâng cấp lên RAM 32GB DDR5_1 - SSD 500GB - Tản nhiệt khí)",
+//                 "price": 60680000,
+//                 "image": "1773208587574-Gaming.jpg",
+//                 "slug": "pc-ttg-gaming-i5-14600kf-rtx-5080-16gb-all-new-bao-hanh-36-thang-nang-cap-len-ram-32gb-ddr5_1-ssd-500gb-tan-nhiet-khi"
+//             },
+//             "createdAt": "2026-03-15T07:50:34.357Z",
+//             "updatedAt": "2026-03-15T07:50:34.357Z",
+//             "__v": 0
+//         }
+//     ]
+// }
+
+
+//lấy tất cả chat dành cho admin http://localhost:3000/api/chats
+// {
+//     "chat": [
+//         {
+//             "_id": "69b65a02885a2a14005b7a53",
+//             "closed": false,
+//             "user": {
+//                 "_id": "69b229645a3da422fcd5a15b",
+//                 "fullname": "Trịnh Nguyễn Bảo Nguyên"
+//             },
+//             "lastUpdatedAt": "2026-03-15T07:09:12.548Z",
+//             "createdAt": "2026-03-15T07:04:34.971Z",
+//             "updatedAt": "2026-03-15T07:09:12.548Z",
+//             "__v": 0,
+//             "lastMessage": "Shop cho mình hỏi cái này ạ"
+//         }
+//     ]
+// }
+
+//gửi tin nhắn http://localhost:3000/api/chats/send/69b65a02885a2a14005b7a53
+// {
+//     "message": {
+//         "content": "Sản phẩm này còn không",
+//         "senderRole": "user",
+//         "chat": "69b65a02885a2a14005b7a53",
+//         "computer": "69b1040bcfd4bdcab5396096",
+//         "_id": "69b664cad6065769b9235cd9",
+//         "createdAt": "2026-03-15T07:50:34.357Z",
+//         "updatedAt": "2026-03-15T07:50:34.357Z",
+//         "__v": 0
+//     }
+// }

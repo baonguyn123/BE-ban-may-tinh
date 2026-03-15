@@ -31,7 +31,9 @@ const cartRouter = require('./routes/cart');
 const orderRouter = require('./routes/order');
 const admin = require('./controllers/createAdminController');
 const authRouter = require('./routes/auth');
+const chatRouter = require('./routes/chat');
 admin();
+app.use('/api/chats', chatRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/roles', roleRouter);
 app.use('/api/categories', categoryRouter);
@@ -54,6 +56,15 @@ app.use(function (req, res, next) {
 });
 
 // error handler
+// app.use(function (err, req, res, next) {
+//   // set locals, only providing error in development
+//   res.locals.message = err.message;
+//   res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+//   // render the error page
+//   res.status(err.status || 500);
+//   res.render('error');
+// });
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
@@ -61,7 +72,7 @@ app.use(function (err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.send(err.message);
 });
 
 module.exports = app;
