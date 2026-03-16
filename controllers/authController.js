@@ -38,21 +38,30 @@ class authController {
     }
     async login(req, res) {
         try {
-            const { email, password } = req.body;
+            // 1. Lấy thêm rememberMe từ req.body
+            const { email, password, rememberMe } = req.body;
+
             const user = await User.findOne({ email })
                 .select('+password')
                 .populate('role', 'name');
+
+            // 2. Gộp chung thông báo lỗi để bảo mật (Chống hacker dò email)
             if (!user) {
-                return res.status(400).json({ message: 'Sai tài khoản' });
+                return res.status(400).json({ message: 'Email hoặc mật khẩu không chính xác' });
             }
+
             const userPassword = await bcrypt.compare(password, user.password);
             if (!userPassword) {
-                return res.status(400).json({ message: 'Sai mật khẩu' });
+                return res.status(400).json({ message: 'Email hoặc mật khẩu không chính xác' });
             }
+
+            // 3. Logic Remember Me: Nếu true thì token sống 30 ngày, false thì 1 ngày
+            const tokenExpireTime = rememberMe ? '30d' : '1d';
+
             const token = jwt.sign({
                 userId: user._id,
                 role: user.role.name
-            }, process.env.JWT_SECRET || 'secretKey', { expiresIn: '1d' }); // Dùng biến môi trường, phòng hờ 'secretKey'
+            }, process.env.JWT_SECRET || 'secretKey', { expiresIn: tokenExpireTime });
 
             res.status(200).json({
                 token,
