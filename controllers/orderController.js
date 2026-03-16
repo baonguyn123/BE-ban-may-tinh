@@ -30,7 +30,7 @@ class OrderController {
             const orderItems = cartItem.map(item => {
                 return {
                     order: order._id,
-                    computer: item.computer._id,
+                    computer: item.computer._id, 
                     productName: item.computer.name,
                     quantity: item.quantity,
                     price: item.computer.price,

@@ -7,6 +7,7 @@ var logger = require('morgan');
 var mongoose = require('mongoose')
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+
 var cors = require('cors');
 
 var app = express();
@@ -34,7 +35,9 @@ const orderRouter = require('./routes/order');
 const admin = require('./controllers/createAdminController');
 const authRouter = require('./routes/auth');
 const chatRouter = require('./routes/chat');
+const paymentRoute = require("./routes/paymentRoutes")
 admin();
+app.use("/payment", paymentRoute)
 app.use('/api/chats', chatRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/roles', roleRouter);
