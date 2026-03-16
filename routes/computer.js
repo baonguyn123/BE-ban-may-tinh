@@ -8,8 +8,8 @@ const authorize = require('../middlewares/authorize');
 // PUBLIC - Ai cũng có thể làm
 router.get('/', computerController.getAll);
 router.get('/category/:slug', computerController.getByCategory);
-router.get('/:slug', computerController.getBySlug);
-router.get('/search/:key', computerController.search);
+router.get('/:slug',computerController.getBySlug);
+router.get('/search/:key',computerController.search);
 
 // ADMIN - Chỉ admin được làm
 router.post('/', authMiddleware, authorize('admin'), upload.single('image'), computerController.create);

@@ -31,6 +31,7 @@ class OrderController {
                 return {
                     order: order._id,
                     computer: item.computer._id,
+                    productName: item.computer.name,
                     quantity: item.quantity,
                     price: item.computer.price,
                     image: item.computer.image
@@ -177,6 +178,31 @@ class OrderController {
                 ordersByStatus
             });
 
+        }
+        catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+    async getOrderDetailAdmin(req, res) {
+        try {
+             const {orderId} = req.params
+             const order = await Order.findById(orderId)
+             .populate('user', 'name email fullname')
+             if(!order){
+                 return res.status(404).json({message: 'Không tìm thấy đơn hàng'})
+             }
+             const orderItem = await OrderItem.find({order: orderId})
+             .populate('computer', 'name price image slug')
+             const totalItem = orderItem.map(
+                function(item){
+                    return {
+                        ...item.toObject(),
+                        totalPrice: item.quantity * item.computer.price
+                    }
+                }
+             )
+
+             res.status(200).json({order,orderItem:totalItem});
         }
         catch (error) {
             res.status(500).json({ message: error.message });

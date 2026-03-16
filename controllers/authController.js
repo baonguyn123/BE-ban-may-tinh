@@ -52,13 +52,16 @@ class authController {
             const token = jwt.sign({
                 userId: user._id,
                 role: user.role.name
-            }
-                , 'secretKey', { expiresIn: '1d' });
+            }, process.env.JWT_SECRET || 'secretKey', { expiresIn: '1d' }); // Dùng biến môi trường, phòng hờ 'secretKey'
+
             res.status(200).json({
                 token,
                 user: {
                     id: user._id,
                     email: user.email,
+                    fullname: user.fullname,
+                    phone: user.phone,
+                    address: user.address,
                     role: user.role.name,
                 }
             });
@@ -104,14 +107,19 @@ class authController {
         try {
             const userId = req.user.userId;
             const { fullname, phone, address } = req.body;
+
             const updateData = {};
             if (fullname) updateData.fullname = fullname;
             if (phone) updateData.phone = phone;
-             const user = await User.findByIdAndUpdate(userId
+            // Dòng được thêm vào để fix lỗi không lưu được địa chỉ
+            if (address) updateData.address = address;
+
+            const user = await User.findByIdAndUpdate(userId
                 , updateData
                 , { new: true })
                 .select('-password')
                 .populate('role', 'name');
+
             res.status(200).json({ user });
         }
         catch (error) {
