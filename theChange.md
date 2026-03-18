@@ -1,2 +1,1 @@
-- Chỉnh file computer.js
--trong computerController getByCategory mới thêm lọc tiền và sắp xếp tiền
+- Chỉnh trong computer.js
