@@ -33,13 +33,12 @@ const Computer = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
         required: true
-    }
+    },
+    timestamps: true
 });
 
 Computer.plugin(mongooseDelete, {
     deletedAt: true,
     overrideMethods: 'all'
-}, {
-    timestamps: true
-})
+});
 module.exports = mongoose.model('Computer', Computer)
