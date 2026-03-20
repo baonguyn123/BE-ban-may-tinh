@@ -20,6 +20,15 @@ class ComputerController {
             res.status(400).json({ message: error.message });
         }
     }
+    async getAll(req, res) {
+        try {
+            const computer = await Computer.find().populate('category', 'name slug description');
+            res.status(200).json(computer);
+        }
+        catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
     async getTrash(req, res) {
         try {
             const computer = await Computer.findDeleted().populate('category', 'name slug description')

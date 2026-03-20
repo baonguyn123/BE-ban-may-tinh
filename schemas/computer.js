@@ -1,9 +1,10 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 const slug = require('mongoose-slug-updater');
 const mongooseDelete = require('mongoose-delete');
 mongoose.plugin(slug);
-const Schema = mongoose.Schema
+const Schema = mongoose.Schema;
 
+// BẮT ĐẦU CỤC OBJECT 1: Định nghĩa các cột
 const Computer = new Schema({
     name: { type: String, required: true },
     price: { type: Number, required: true },
@@ -21,24 +22,28 @@ const Computer = new Schema({
         psu: { type: String },
         case: { type: String },
         cooling: { type: String },
-        monitor: { type: String } // Vẫn giữ lại dự phòng nếu sau này bán Laptop/Màn hình
+        monitor: { type: String }
     },
 
     stockQuantity: { type: Number, default: 0 },
-
-    // Đếm số lượng đã bán
     soldCount: { type: Number, default: 0 },
     slug: { type: String, slug: 'name', unique: true },
+
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
         required: true
-    },
-    timestamps: true
-});
+    }
+},
+    // BẮT ĐẦU CỤC OBJECT 2: Cài đặt Options (CHÚ Ý DẤU PHẨY Ở TRÊN)
+    {
+        timestamps: true
+    });
 
+// Cài đặt Plugin xóa mềm
 Computer.plugin(mongooseDelete, {
     deletedAt: true,
     overrideMethods: 'all'
 });
-module.exports = mongoose.model('Computer', Computer)
+
+module.exports = mongoose.model('Computer', Computer);
