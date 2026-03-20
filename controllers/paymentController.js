@@ -6,7 +6,7 @@ const config = require("../config/vnpayConfig")
 
 const Order = require("../schemas/order")
 const Payment = require("../schemas/payment")
-
+const OrderItem = require("../schemas/orderitem")
 function sortObject(obj) {
     let sorted = {}
     let str = []
@@ -191,22 +191,41 @@ class PaymentController {
                     })
 
                 }
-
+                if (payment.status === "SUCCESS") {
+                    return res.json({ message: "Đã thanh toán rồi" })
+                }
                 if (vnp_Params["vnp_ResponseCode"] === "00") {
 
-                    payment.status = "SUCCESS"
 
                     payment.transactionId =
                         vnp_Params["vnp_TransactionNo"]
+                    const orderItems = await OrderItem.find({ order: orderId })
+
+                    for (const item of orderItems) {
+
+                        const updatedStock = await Computer.findOneAndUpdate(
+                            {
+                                _id: item.computer,
+                                stockQuantity: { $gte: item.quantity }
+                            },
+                            {
+                                $inc: { stockQuantity: -item.quantity }
+                            },
+                            { new: true }
+                        )
+
+                        if (!updatedStock) {
+                            throw new Error(`Sản phẩm ${item.productName} không đủ hàng`)
+                        }
+                    }
+
+                    await Order.findByIdAndUpdate(orderId, {
+                        status: "PENDING"
+                    })
+
+                    payment.status = "SUCCESS"
 
                     await payment.save()
-
-                    await Order.findByIdAndUpdate(
-                        orderId,
-                        {
-                            status: "CONFIRMED"
-                        }
-                    )
 
                     return res.json({
                         message: "Thanh toán thành công"

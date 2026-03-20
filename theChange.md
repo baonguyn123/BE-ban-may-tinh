@@ -1,1 +1,2 @@
 - Chỉnh trong computer.js
+- làm số lượng trong kho và bán chạy 

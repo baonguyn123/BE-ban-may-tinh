@@ -29,6 +29,14 @@ const Payment = new Schema({
         enum: ["PENDING", "SUCCESS", "FAILED"],
         default: "PENDING"
     },
+    refundStatus: {
+        type: String,
+        enum: ["NONE", "REFUNDED"],
+        default: "NONE"
+    },
+    refundAt: {
+        type: Date
+    },
 
     order: {
         type: mongoose.Schema.Types.ObjectId,

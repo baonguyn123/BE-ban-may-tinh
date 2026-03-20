@@ -136,6 +136,22 @@ class ComputerController {
             res.status(500).json({ message: error.message });
         }
     }
+    async getBestSellers(req, res) {
+        try {
+            //giới hạn số lượng hiện là 10 máy tính
+            const limit = parseInt(req.query.limit) || 10;
+
+            const bestSellers = await Computer.find({ stockQuantity: { $gt: 0 } })
+                .populate('category', 'name')
+                .sort({ soldCount: -1 })
+                .limit(limit);
+
+            res.status(200).json(bestSellers);
+        }
+        catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
 
 }
 

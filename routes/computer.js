@@ -10,6 +10,7 @@ router.get('/', computerController.getAll);
 router.get('/category/:slug', computerController.getByCategory);
 router.get('/:slug',computerController.getBySlug);
 router.get('/search/:key',computerController.search);
+router.get('/best-sellers', computerController.getBestSellers);
 
 // ADMIN - Chỉ admin được làm
 router.post('/', authMiddleware, authorize('admin'), upload.single('image'), computerController.create);
