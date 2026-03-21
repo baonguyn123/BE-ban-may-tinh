@@ -27,6 +27,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
+const bannerRouter = require('./routes/banner');
 const categoryRouter = require('./routes/category');
 const computerRouter = require('./routes/computer');
 const roleRouter = require('./routes/role');
@@ -45,6 +46,7 @@ app.use('/api/categories', categoryRouter);
 app.use('/api/computers', computerRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', orderRouter);
+app.use('/api/banners', bannerRouter);
 
 mongoose.connect('mongodb://localhost:27017/may_tinh');
 mongoose.connection.on('connected', function () {
