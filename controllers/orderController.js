@@ -186,7 +186,7 @@ class OrderController {
             if (!order) {
                 return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
             }
-            if (order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
+            if (order.status !== 'UNPAID' && order.status !== 'CONFIRMED') {
                 return res.status(400).json({ message: 'Không thể hủy đơn hàng ở trạng thái này' });
             }
             const orderItem = await OrderItem.find({ order: orderId })
@@ -200,7 +200,7 @@ class OrderController {
             }
             order.status = 'CANCELLED'
             await order.save()
-             if (payment && payment.status === "SUCCESS" && payment.refundStatus !== "REFUNDED") {
+            if (payment && payment.status === "SUCCESS" && payment.refundStatus !== "REFUNDED") {
                 payment.refundStatus = "REFUNDED"
                 payment.refundAt = new Date()
                 await payment.save()
