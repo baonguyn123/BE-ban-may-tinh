@@ -27,6 +27,8 @@ const Computer = new Schema({
 
     stockQuantity: { type: Number, default: 0 },
     soldCount: { type: Number, default: 0 },
+    averageRating: { type: Number, default: 0 },
+    totalReviews: { type: Number, default: 0 },
     slug: { type: String, slug: 'name', unique: true },
 
     category: {

@@ -30,6 +30,18 @@ const User = new Schema({
         type: String,
         required: true,
     },
+    gender: {
+        type: String,
+        default: 'Chưa biết',
+    },
+    dob: {
+        type: String,
+        default: '',
+    },
+    avatar: {
+        type: String,
+        default: '',
+    },
     role:
     {
         type: mongoose.Schema.Types.ObjectId,

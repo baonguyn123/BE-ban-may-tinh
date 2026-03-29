@@ -115,24 +115,47 @@ class authController {
     async updateProfile(req, res) {
         try {
             const userId = req.user.userId;
-            const { fullname, phone, address } = req.body;
+            const { fullname, phone, address, gender, dob, avatar } = req.body;
 
             const updateData = {};
             if (fullname) updateData.fullname = fullname;
             if (phone) updateData.phone = phone;
-            // Dòng được thêm vào để fix lỗi không lưu được địa chỉ
             if (address) updateData.address = address;
 
-            const user = await User.findByIdAndUpdate(userId
-                , updateData
-                , { new: true })
-                .select('-password')
-                .populate('role', 'name');
+            if (gender) updateData.gender = gender;
+            if (dob) updateData.dob = dob;
+            if (avatar) updateData.avatar = avatar;
+
+            const user = await User.findByIdAndUpdate(userId, updateData, { new: true })
+                .select('-password').populate('role', 'name');
 
             res.status(200).json({ user });
-        }
-        catch (error) {
+        } catch (error) {
             res.status(500).json({ message: 'Lỗi server' });
+        }
+    }
+    async uploadAvatar(req, res) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'Không tìm thấy file ảnh tải lên' });
+            }
+
+            const userId = req.user.userId;
+            const avatarUrl = '/images/' + req.file.filename;
+
+            // Cập nhật link ảnh vào DB
+            const user = await User.findByIdAndUpdate(
+                userId,
+                { avatar: avatarUrl },
+                { new: true }
+            ).select('-password').populate('role', 'name');
+
+            res.status(200).json({
+                message: 'Cập nhật ảnh đại diện thành công',
+                user
+            });
+        } catch (error) {
+            res.status(500).json({ message: error.message });
         }
     }
 }

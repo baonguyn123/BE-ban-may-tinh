@@ -43,7 +43,7 @@ class OrderController {
                 user: userId,
                 shippingAddress,
                 phone,
-                status: 'UNPAID',
+                status: 'PENDING',
                 totalAmount: totalPrice
             });
 
@@ -59,6 +59,13 @@ class OrderController {
             }));
 
             await OrderItem.insertMany(orderItems);
+
+            for (const item of cartItems) {
+                await Computer.findByIdAndUpdate(
+                    item.computer._id,
+                    { $inc: { stockQuantity: -item.quantity } }
+                );
+            }
 
             await Cartitem.deleteMany({ user: userId });
 
@@ -78,31 +85,28 @@ class OrderController {
             const { status } = req.query;
 
             const filter = { user: userId };
-            //ví dụ giống với 
-            // const person = {
-            //     name: "An"
-            // };
 
-            // person.age = 20;
-
-            // console.log(person);
-            // {
-            //          name: "An",
-            //         age: 20
-            // }
-            //filter{
-            //     user: userId,
-            //     status: status
-            // }
-            if (status) {
+            // Xử lý logic các Tab (Ánh xạ từ Frontend xuống Backend)
+            if (status && status !== 'ALL') {
                 filter.status = status;
             }
 
+            // 1. Lấy danh sách vỏ đơn hàng (Dùng .lean() để có thể gắn thêm dữ liệu)
             const orders = await Order.find(filter)
                 .populate('user', 'name email fullname')
-                .sort({ createdAt: -1 });
+                .sort({ createdAt: -1 })
+                .lean();
 
-            res.status(200).json({ orders });
+            // 2. Chạy vòng lặp để lấy chi tiết từng món hàng (OrderItem) nhét vào trong đơn hàng
+            const ordersWithItems = await Promise.all(
+                orders.map(async (order) => {
+                    const items = await OrderItem.find({ order: order._id })
+                        .populate('computer', 'name image price slug');
+                    return { ...order, orderItems: items };
+                })
+            );
+
+            res.status(200).json({ orders: ordersWithItems });
         } catch (error) {
             res.status(500).json({ message: error.message });
         }
@@ -186,7 +190,7 @@ class OrderController {
             if (!order) {
                 return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
             }
-            if (order.status !== 'UNPAID' && order.status !== 'CONFIRMED') {
+            if (order.status !== 'PENDING' && order.status !== 'CONFIRMED' && order.status !== 'UNPAID') {
                 return res.status(400).json({ message: 'Không thể hủy đơn hàng ở trạng thái này' });
             }
             const orderItem = await OrderItem.find({ order: orderId })
