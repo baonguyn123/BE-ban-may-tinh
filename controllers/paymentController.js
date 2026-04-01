@@ -29,9 +29,7 @@ function sortObject(obj) {
 
 class PaymentController {
 
-    // ================================
     // TẠO LINK THANH TOÁN
-    // ================================
     async createPayment(req, res) {
 
         try {
@@ -145,122 +143,70 @@ class PaymentController {
     }
 
 
-    // ================================
     // RETURN URL
-    // ================================
     async vnpayReturn(req, res) {
-
         try {
+            let vnp_Params = req.query;
+            const secureHash = vnp_Params["vnp_SecureHash"];
 
-            let vnp_Params = req.query
+            delete vnp_Params["vnp_SecureHash"];
+            delete vnp_Params["vnp_SecureHashType"];
 
-            const secureHash = vnp_Params["vnp_SecureHash"]
+            vnp_Params = sortObject(vnp_Params);
+            const secretKey = config.vnp_HashSecret;
+            const signData = qs.stringify(vnp_Params, { encode: false });
+            const hmac = crypto.createHmac("sha512", secretKey);
+            const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
 
-            delete vnp_Params["vnp_SecureHash"]
-            delete vnp_Params["vnp_SecureHashType"]
-
-            vnp_Params = sortObject(vnp_Params)
-
-            const secretKey = config.vnp_HashSecret
-
-            const signData = qs.stringify(vnp_Params, {
-                encode: false
-            })
-
-            const hmac = crypto.createHmac(
-                "sha512",
-                secretKey
-            )
-
-            const signed = hmac
-                .update(Buffer.from(signData, "utf-8"))
-                .digest("hex")
+            const frontendUrl = "http://localhost:5173/orders";
 
             if (secureHash === signed) {
-
-                const orderId = vnp_Params["vnp_TxnRef"]
-
-                const payment = await Payment.findOne({
-                    order: orderId
-                })
+                const orderId = vnp_Params["vnp_TxnRef"];
+                const payment = await Payment.findOne({ order: orderId });
 
                 if (!payment) {
-
-                    return res.status(404).json({
-                        message: "Không tìm thấy payment"
-                    })
-
+                    return res.redirect(`${frontendUrl}?payment=error`);
                 }
                 if (payment.status === "SUCCESS") {
-                    return res.json({ message: "Đã thanh toán rồi" })
+                    return res.redirect(`${frontendUrl}?payment=success`);
                 }
+
+                // Mã 00 là thanh toán thành công
                 if (vnp_Params["vnp_ResponseCode"] === "00") {
-
-
-                    payment.transactionId =
-                        vnp_Params["vnp_TransactionNo"]
-                    const orderItems = await OrderItem.find({ order: orderId })
+                    payment.transactionId = vnp_Params["vnp_TransactionNo"];
+                    const orderItems = await OrderItem.find({ order: orderId });
 
                     for (const item of orderItems) {
-
                         const updatedStock = await Computer.findOneAndUpdate(
-                            {
-                                _id: item.computer,
-                                stockQuantity: { $gte: item.quantity }
-                            },
-                            {
-                                $inc: { stockQuantity: -item.quantity }
-                            },
+                            { _id: item.computer, stockQuantity: { $gte: item.quantity } },
+                            { $inc: { stockQuantity: -item.quantity } },
                             { new: true }
-                        )
-
-                        if (!updatedStock) {
-                            throw new Error(`Sản phẩm ${item.productName} không đủ hàng`)
-                        }
+                        );
+                        if (!updatedStock) throw new Error(`Sản phẩm ${item.productName} không đủ hàng`);
                     }
 
-                    await Order.findByIdAndUpdate(orderId, {
-                        status: "PENDING"
-                    })
+                    await Order.findByIdAndUpdate(orderId, { status: "PENDING" });
+                    payment.status = "SUCCESS";
+                    await payment.save();
 
-                    payment.status = "SUCCESS"
-
-                    await payment.save()
-
-                    return res.json({
-                        message: "Thanh toán thành công"
-                    })
-
+                    return res.redirect(`${frontendUrl}?payment=success`);
                 } else {
+                    // Thanh toán thất bại hoặc khách bấm Hủy
+                    payment.status = "FAILED";
+                    await payment.save();
 
-                    payment.status = "FAILED"
+                    await Order.findByIdAndUpdate(orderId, { status: "CANCELLED" }); // Chuyển trạng thái đơn hàng thành CANCELLED nếu hủy thanh toán
 
-                    await payment.save()
-
-                    return res.json({
-                        message: "Thanh toán thất bại"
-                    })
-
+                    return res.redirect(`${frontendUrl}?payment=failed`);
                 }
-
             } else {
-
-                return res.json({
-                    message: "Sai chữ ký"
-                })
-
+                return res.redirect(`${frontendUrl}?payment=error`);
             }
-
         } catch (error) {
-
-            res.status(500).json({
-                message: error.message
-            })
-
+            console.error(error);
+            return res.redirect(`http://localhost:5173/orders?payment=error`);
         }
-
     }
-
 }
 
 module.exports = new PaymentController()

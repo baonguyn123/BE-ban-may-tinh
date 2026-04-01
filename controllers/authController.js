@@ -82,7 +82,12 @@ class authController {
 
     async changePassword(req, res) {
         try {
+            // Kiểm tra mật khẩu mới và mật khẩu cũ
             const { oldPassword, newPassword } = req.body;
+            if (oldPassword === newPassword) {
+                return res.status(400).json({ message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại!' });
+            }
+
             const userId = req.user.userId
             const user = await User.findById(userId).select('+password');
             if (!user) {
