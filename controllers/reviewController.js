@@ -45,7 +45,7 @@ class ReviewController {
                 await review.save();
             }
 
-            // BƯỚC QUAN TRỌNG: Tính toán lại Điểm Trung Bình cho Sản phẩm
+            // Tính toán lại Điểm Trung Bình cho Sản phẩm
             const allReviews = await Review.find({ computer: computerId });
             const totalReviews = allReviews.length;
             const averageRating = totalReviews > 0
