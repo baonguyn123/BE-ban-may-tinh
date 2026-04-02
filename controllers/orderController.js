@@ -1,154 +1,65 @@
-// controllers/order.controller.js
+const Review = require('../schemas/review');
+const Computer = require('../schemas/computer');
 const Order = require('../schemas/order');
 const OrderItem = require('../schemas/orderitem');
-const Cartitem = require('../schemas/cartitem');
-const Computer = require('../schemas/computer');
-const Payment = require('../schemas/payment');
 
-class OrderController {
-    // Tạo đơn hàng
-    async createOrder(userId, data) {
-        const { shippingAddress, phone, couponCode, discountAmount } = data;
+class ReviewController {
+    // Trả về review hoặc lỗi, không trả res trực tiếp
+    async createOrUpdateReview({ userId, computerId, orderId, rating, comment }) {
+        // KIỂM TRA ĐƠN HÀNG
+        const order = await Order.findOne({ _id: orderId, user: userId, status: 'DELIVERED' });
+        if (!order) throw { status: 400, message: 'Bạn chỉ được đánh giá khi đơn hàng đã giao thành công!' };
 
-        if (!shippingAddress || !phone) throw new Error('Vui lòng cung cấp địa chỉ giao hàng và số điện thoại');
+        // KIỂM TRA SẢN PHẨM
+        const orderItem = await OrderItem.findOne({ order: orderId, computer: computerId });
+        if (!orderItem) throw { status: 400, message: 'Sản phẩm không hợp lệ trong đơn hàng này!' };
 
-        const cartItems = await Cartitem.find({ user: userId })
-            .populate('computer', 'name price image stockQuantity');
+        // KIỂM TRA REVIEW CŨ
+        let review = await Review.findOne({ user: userId, computer: computerId, order: orderId });
 
-        if (!cartItems.length) throw new Error('Giỏ hàng của bạn đang trống');
+        if (review) {
+            // Luật 30 ngày
+            const reviewDate = new Date(review.createdAt);
+            const currentDate = new Date();
+            const diffTime = Math.abs(currentDate - reviewDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        let totalPrice = 0;
+            if (diffDays > 30) throw { status: 400, message: 'Đã quá 30 ngày kể từ lúc đánh giá. Bạn không thể chỉnh sửa nữa.' };
 
-        for (const item of cartItems) {
-            if (item.computer.stockQuantity === 0)
-                throw new Error(`Sản phẩm ${item.computer.name} đã hết hàng`);
-            if (item.quantity > item.computer.stockQuantity)
-                throw new Error(`Sản phẩm ${item.computer.name} chỉ còn ${item.computer.stockQuantity}`);
-            totalPrice += item.quantity * item.computer.price;
+            review.rating = rating;
+            review.comment = comment;
+            await review.save();
+        } else {
+            review = new Review({ user: userId, computer: computerId, order: orderId, rating, comment });
+            await review.save();
         }
 
-        const finalAmount = totalPrice - (discountAmount || 0);
+        // Cập nhật điểm trung bình
+        const allReviews = await Review.find({ computer: computerId });
+        const totalReviews = allReviews.length;
+        const averageRating = totalReviews > 0
+            ? (allReviews.reduce((sum, item) => sum + item.rating, 0) / totalReviews).toFixed(1)
+            : 0;
 
-        const order = new Order({ user: userId, shippingAddress, phone, status: 'PENDING', totalAmount: totalPrice });
-        await order.save();
+        await Computer.findByIdAndUpdate(computerId, {
+            totalReviews,
+            averageRating: parseFloat(averageRating)
+        });
 
-        const orderItems = cartItems.map(item => ({
-            order: order._id,
-            computer: item.computer._id,
-            productName: item.computer.name,
-            quantity: item.quantity,
-            price: item.computer.price,
-            image: item.computer.image
-        }));
-
-        await OrderItem.insertMany(orderItems);
-
-        for (const item of cartItems) {
-            await Computer.findByIdAndUpdate(item.computer._id, { $inc: { stockQuantity: -item.quantity } });
-        }
-
-        await Cartitem.deleteMany({ user: userId });
-
-        return order._id;
+        return { message: 'Cảm ơn bạn đã đánh giá sản phẩm!', review };
     }
 
-    // Lấy đơn hàng của user
-    async getMyOrders(userId, status) {
-        const filter = { user: userId };
-        if (status && status !== 'ALL') filter.status = status;
-
-        const orders = await Order.find(filter).populate('user', 'name email fullname').sort({ createdAt: -1 }).lean();
-
-        const ordersWithItems = await Promise.all(
-            orders.map(async (order) => {
-                const items = await OrderItem.find({ order: order._id }).populate('computer', 'name image price slug');
-                return { ...order, orderItems: items };
-            })
-        );
-
-        return ordersWithItems;
+    async getProductReviews(computerId) {
+        const reviews = await Review.find({ computer: computerId })
+            .populate('user', 'fullname avatar username')
+            .sort({ updatedAt: -1 });
+        return reviews;
     }
 
-    // Lấy chi tiết đơn hàng của user
-    async getOrderDetail(userId, orderId) {
-        const order = await Order.findOne({ _id: orderId, user: userId }).populate('user', 'name email fullname');
-        if (!order) throw new Error('Đơn hàng không tồn tại');
-
-        const orderItems = await OrderItem.find({ order: orderId }).populate('computer', 'name price image slug');
-        return { order, orderItems };
-    }
-
-    // Các phương thức admin (getAllOrders, updateOrderStatus, getOrderDetailAdmin, getOrderStats)
-    async getAllOrders() {
-        return await Order.find().populate('user', 'name email fullname').sort({ createdAt: -1 });
-    }
-
-    async updateOrderStatus(orderId, status) {
-        const validStatuses = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-        if (!validStatuses.includes(status)) throw new Error('Trạng thái không hợp lệ');
-
-        const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true }).populate('user', 'fullname email phone');
-        if (!order) throw new Error('Không tìm thấy đơn hàng');
-
-        if (status === 'DELIVERED') {
-            const orderItems = await OrderItem.find({ order: orderId });
-            for (const item of orderItems) {
-                await Computer.findByIdAndUpdate(item.computer, { $inc: { stock: item.quantity } });
-            }
-        }
-
-        return order;
-    }
-
-    async cancelOrder(userId, orderId) {
-        const order = await Order.findOne({ _id: orderId, user: userId });
-        const payment = await Payment.findOne({ order: orderId });
-        if (!order) throw new Error('Không tìm thấy đơn hàng');
-
-        if (!['PENDING', 'CONFIRMED', 'UNPAID'].includes(order.status))
-            throw new Error('Không thể hủy đơn hàng ở trạng thái này');
-
-        const orderItems = await OrderItem.find({ order: orderId });
-        for (const item of orderItems) {
-            await Computer.findByIdAndUpdate(item.computer, { $inc: { stockQuantity: item.quantity } });
-        }
-
-        order.status = 'CANCELLED';
-        await order.save();
-
-        if (payment?.status === 'SUCCESS' && payment.refundStatus !== 'REFUNDED') {
-            payment.refundStatus = 'REFUNDED';
-            payment.refundAt = new Date();
-            await payment.save();
-        }
-
-        return order;
-    }
-
-    async getOrderStats() {
-        const totalOrder = await Order.countDocuments();
-        const totalRevenueData = await Order.aggregate([
-            { $match: { status: 'DELIVERED' } },
-            { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-        ]);
-        const ordersByStatus = await Order.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
-
-        return {
-            totalOrder,
-            totalRevenue: totalRevenueData[0]?.total || 0,
-            ordersByStatus
-        };
-    }
-
-    async getOrderDetailAdmin(orderId) {
-        const order = await Order.findById(orderId).populate('user', 'name email fullname');
-        if (!order) throw new Error('Không tìm thấy đơn hàng');
-
-        const orderItems = await OrderItem.find({ order: orderId }).populate('computer', 'name price image slug');
-        const totalItem = orderItems.map(item => ({ ...item.toObject(), totalPrice: item.quantity * item.computer.price }));
-
-        return { order, orderItem: totalItem };
+    async checkUserReview({ userId, computerId, orderId }) {
+        const review = await Review.findOne({ user: userId, computer: computerId, order: orderId });
+        return review; // null nếu chưa đánh giá
     }
 }
 
-module.exports = new OrderController();
+module.exports = new ReviewController();
