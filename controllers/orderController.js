@@ -1,269 +1,154 @@
+// controllers/order.controller.js
 const Order = require('../schemas/order');
 const OrderItem = require('../schemas/orderitem');
 const Cartitem = require('../schemas/cartitem');
 const Computer = require('../schemas/computer');
-const User = require('../schemas/user');
 const Payment = require('../schemas/payment');
 
 class OrderController {
-    async createOrder(req, res) {
-        try {
-            const userId = req.user.userId;
-            const { shippingAddress, phone, couponCode, discountAmount } = req.body;
+    // Tạo đơn hàng
+    async createOrder(userId, data) {
+        const { shippingAddress, phone, couponCode, discountAmount } = data;
 
-            if (!shippingAddress || !phone) {
-                throw new Error('Vui lòng cung cấp địa chỉ giao hàng và số điện thoại');
-            }
+        if (!shippingAddress || !phone) throw new Error('Vui lòng cung cấp địa chỉ giao hàng và số điện thoại');
 
-            const cartItems = await Cartitem.find({ user: userId })
-                .populate('computer', 'name price image stockQuantity');
+        const cartItems = await Cartitem.find({ user: userId })
+            .populate('computer', 'name price image stockQuantity');
 
-            if (cartItems.length === 0) {
-                throw new Error('Giỏ hàng của bạn đang trống');
-            }
+        if (!cartItems.length) throw new Error('Giỏ hàng của bạn đang trống');
 
-            let totalPrice = 0;
+        let totalPrice = 0;
 
-            for (const item of cartItems) {
-                console.log('PRODUCT:', item.computer.name);
-                console.log('QUANTITY:', item.quantity);
-
-                if (item.computer.stockQuantity === 0) {
-                    throw new Error(`Sản phẩm ${item.computer.name} đã hết hàng`);
-                }
-
-                if (item.quantity > item.computer.stockQuantity) {
-                    throw new Error(`Sản phẩm ${item.computer.name} chỉ còn ${item.computer.stockQuantity}`);
-                }
-
-                totalPrice += item.quantity * item.computer.price;
-            }
-
-            const finalAmount = totalPrice - (discountAmount || 0);
-
-            const order = new Order({
-                user: userId,
-                shippingAddress,
-                phone,
-                status: 'PENDING',
-                totalAmount: totalPrice
-            });
-
-            await order.save();
-
-            const orderItems = cartItems.map(item => ({
-                order: order._id,
-                computer: item.computer._id,
-                productName: item.computer.name,
-                quantity: item.quantity,
-                price: item.computer.price,
-                image: item.computer.image
-            }));
-
-            await OrderItem.insertMany(orderItems);
-
-            for (const item of cartItems) {
-                await Computer.findByIdAndUpdate(
-                    item.computer._id,
-                    { $inc: { stockQuantity: -item.quantity } }
-                );
-            }
-
-            await Cartitem.deleteMany({ user: userId });
-
-            res.status(200).json({
-                message: 'Đơn hàng đã được tạo thành công',
-                orderId: order._id
-            });
-
-        } catch (error) {
-
-            res.status(400).json({ message: error.message });
+        for (const item of cartItems) {
+            if (item.computer.stockQuantity === 0)
+                throw new Error(`Sản phẩm ${item.computer.name} đã hết hàng`);
+            if (item.quantity > item.computer.stockQuantity)
+                throw new Error(`Sản phẩm ${item.computer.name} chỉ còn ${item.computer.stockQuantity}`);
+            totalPrice += item.quantity * item.computer.price;
         }
+
+        const finalAmount = totalPrice - (discountAmount || 0);
+
+        const order = new Order({ user: userId, shippingAddress, phone, status: 'PENDING', totalAmount: totalPrice });
+        await order.save();
+
+        const orderItems = cartItems.map(item => ({
+            order: order._id,
+            computer: item.computer._id,
+            productName: item.computer.name,
+            quantity: item.quantity,
+            price: item.computer.price,
+            image: item.computer.image
+        }));
+
+        await OrderItem.insertMany(orderItems);
+
+        for (const item of cartItems) {
+            await Computer.findByIdAndUpdate(item.computer._id, { $inc: { stockQuantity: -item.quantity } });
+        }
+
+        await Cartitem.deleteMany({ user: userId });
+
+        return order._id;
     }
-    async getMyOrders(req, res) {
-        try {
-            const userId = req.user.userId;
-            const { status } = req.query;
 
-            const filter = { user: userId };
+    // Lấy đơn hàng của user
+    async getMyOrders(userId, status) {
+        const filter = { user: userId };
+        if (status && status !== 'ALL') filter.status = status;
 
-            // Xử lý logic các Tab (Ánh xạ từ Frontend xuống Backend)
-            if (status && status !== 'ALL') {
-                filter.status = status;
-            }
+        const orders = await Order.find(filter).populate('user', 'name email fullname').sort({ createdAt: -1 }).lean();
 
-            // 1. Lấy danh sách vỏ đơn hàng (Dùng .lean() để có thể gắn thêm dữ liệu)
-            const orders = await Order.find(filter)
-                .populate('user', 'name email fullname')
-                .sort({ createdAt: -1 })
-                .lean();
+        const ordersWithItems = await Promise.all(
+            orders.map(async (order) => {
+                const items = await OrderItem.find({ order: order._id }).populate('computer', 'name image price slug');
+                return { ...order, orderItems: items };
+            })
+        );
 
-            // 2. Chạy vòng lặp để lấy chi tiết từng món hàng (OrderItem) nhét vào trong đơn hàng
-            const ordersWithItems = await Promise.all(
-                orders.map(async (order) => {
-                    const items = await OrderItem.find({ order: order._id })
-                        .populate('computer', 'name image price slug');
-                    return { ...order, orderItems: items };
-                })
-            );
-
-            res.status(200).json({ orders: ordersWithItems });
-        } catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+        return ordersWithItems;
     }
-    async getOrderDetail(req, res) {
-        const { orderId } = req.params;
-        const userId = req.user.userId;
-        try {
-            const order = await Order.findOne({ _id: orderId, user: userId })
-                .populate('user', 'name email fullname');
-            if (!order) {
-                return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-            }
-            const orderItem = await OrderItem.find({ order: orderId })
-                .populate('computer', 'name price image slug');
-            res.status(200).json({ order, orderItem });
 
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+    // Lấy chi tiết đơn hàng của user
+    async getOrderDetail(userId, orderId) {
+        const order = await Order.findOne({ _id: orderId, user: userId }).populate('user', 'name email fullname');
+        if (!order) throw new Error('Đơn hàng không tồn tại');
+
+        const orderItems = await OrderItem.find({ order: orderId }).populate('computer', 'name price image slug');
+        return { order, orderItems };
     }
-    // lấy tất cả đơn hàng dành cho admin 
-    async getAllOrders(req, res) {
-        try {
-            const orders = await Order.find()
-                .populate('user', 'name email fullname')
-                .sort({ createdAt: -1 });
-            res.status(200).json({ orders });
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    // Các phương thức admin (getAllOrders, updateOrderStatus, getOrderDetailAdmin, getOrderStats)
+    async getAllOrders() {
+        return await Order.find().populate('user', 'name email fullname').sort({ createdAt: -1 });
     }
-    // cập nhật trạng thái đơn hàng dành cho admin
-    async updateOrderStatus(req, res) {
-        try {
-            const { orderId } = req.params
-            const { status } = req.body
 
-            const validStatuses = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-            if (!validStatuses.includes(status)) {
-                return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+    async updateOrderStatus(orderId, status) {
+        const validStatuses = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
+        if (!validStatuses.includes(status)) throw new Error('Trạng thái không hợp lệ');
+
+        const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true }).populate('user', 'fullname email phone');
+        if (!order) throw new Error('Không tìm thấy đơn hàng');
+
+        if (status === 'DELIVERED') {
+            const orderItems = await OrderItem.find({ order: orderId });
+            for (const item of orderItems) {
+                await Computer.findByIdAndUpdate(item.computer, { $inc: { stock: item.quantity } });
             }
-            const order = await Order.findByIdAndUpdate(
-                orderId
-                , { status }
-                , { new: true }
-            ).populate('user', 'fullname email phone');
-            if (!order) {
-                return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-            }
-            if (status === 'DELIVERED') {
-                const orderItem = await OrderItem.find({ order: orderId })
-                for (const item of orderItem) {
-                    await Computer.findByIdAndUpdate(
-                        item.computer,
-                        { $inc: { stock: item.quantity } },
-                        { new: true }
-                    )
-                }
-            }
-
-            res.status(200).json({
-                message: 'Trạng thái đơn hàng đã được cập nhật',
-                order
-            });
-
-
         }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+        return order;
     }
-    async cancelOrder(req, res) {
-        try {
-            const { orderId } = req.params
-            const userId = req.user.userId
-            const order = await Order.findOne({ _id: orderId, user: userId })
-            const payment = await Payment.findOne({ order: orderId })
-            if (!order) {
-                return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-            }
-            if (order.status !== 'PENDING' && order.status !== 'CONFIRMED' && order.status !== 'UNPAID') {
-                return res.status(400).json({ message: 'Không thể hủy đơn hàng ở trạng thái này' });
-            }
-            const orderItem = await OrderItem.find({ order: orderId })
-            for (const item of orderItem) {
-                await Computer.findByIdAndUpdate(
-                    item.computer,
-                    {
-                        $inc: { stockQuantity: item.quantity }
-                    }
-                );
-            }
-            order.status = 'CANCELLED'
-            await order.save()
-            if (payment && payment.status === "SUCCESS" && payment.refundStatus !== "REFUNDED") {
-                payment.refundStatus = "REFUNDED"
-                payment.refundAt = new Date()
-                await payment.save()
-            }
-            res.status(200).json({ message: 'Đơn hàng đã hủy', order });
+
+    async cancelOrder(userId, orderId) {
+        const order = await Order.findOne({ _id: orderId, user: userId });
+        const payment = await Payment.findOne({ order: orderId });
+        if (!order) throw new Error('Không tìm thấy đơn hàng');
+
+        if (!['PENDING', 'CONFIRMED', 'UNPAID'].includes(order.status))
+            throw new Error('Không thể hủy đơn hàng ở trạng thái này');
+
+        const orderItems = await OrderItem.find({ order: orderId });
+        for (const item of orderItems) {
+            await Computer.findByIdAndUpdate(item.computer, { $inc: { stockQuantity: item.quantity } });
         }
-        catch (error) {
-            res.status(500).json({ message: error.message });
+
+        order.status = 'CANCELLED';
+        await order.save();
+
+        if (payment?.status === 'SUCCESS' && payment.refundStatus !== 'REFUNDED') {
+            payment.refundStatus = 'REFUNDED';
+            payment.refundAt = new Date();
+            await payment.save();
         }
+
+        return order;
     }
-    //THỐNG KÊ ĐƠN HÀNG
-    async getOrderStats(req, res) {
-        try {
-            const totalOrder = await Order.countDocuments()
-            const totalRevenue = await Order.aggregate([
-                { $match: { status: 'DELIVERED' } },
-                { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-            ])
-            const ordersByStatus = await Order.aggregate([
-                { $group: { _id: '$status', count: { $sum: 1 } } }
-            ]);
 
-            res.status(200).json({
-                totalOrder,
-                totalRevenue: totalRevenue[0]?.total || 0,
-                ordersByStatus
-            });
+    async getOrderStats() {
+        const totalOrder = await Order.countDocuments();
+        const totalRevenueData = await Order.aggregate([
+            { $match: { status: 'DELIVERED' } },
+            { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+        ]);
+        const ordersByStatus = await Order.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
 
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+        return {
+            totalOrder,
+            totalRevenue: totalRevenueData[0]?.total || 0,
+            ordersByStatus
+        };
     }
-    async getOrderDetailAdmin(req, res) {
-        try {
-            const { orderId } = req.params
-            const order = await Order.findById(orderId)
-                .populate('user', 'name email fullname')
-            if (!order) {
-                return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
-            }
-            const orderItem = await OrderItem.find({ order: orderId })
-                .populate('computer', 'name price image slug')
-            const totalItem = orderItem.map(
-                function (item) {
-                    return {
-                        ...item.toObject(),
-                        totalPrice: item.quantity * item.computer.price
-                    }
-                }
-            )
 
-            res.status(200).json({ order, orderItem: totalItem });
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+    async getOrderDetailAdmin(orderId) {
+        const order = await Order.findById(orderId).populate('user', 'name email fullname');
+        if (!order) throw new Error('Không tìm thấy đơn hàng');
+
+        const orderItems = await OrderItem.find({ order: orderId }).populate('computer', 'name price image slug');
+        const totalItem = orderItems.map(item => ({ ...item.toObject(), totalPrice: item.quantity * item.computer.price }));
+
+        return { order, orderItem: totalItem };
     }
 }
-module.exports = new OrderController()
+
+module.exports = new OrderController();
