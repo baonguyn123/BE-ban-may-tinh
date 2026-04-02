@@ -9,7 +9,7 @@ class OrderController {
     async createOrder(req, res) {
         try {
             const userId = req.user.userId;
-            const { shippingAddress, phone } = req.body;
+            const { shippingAddress, phone, couponCode, discountAmount } = req.body;
 
             if (!shippingAddress || !phone) {
                 throw new Error('Vui lòng cung cấp địa chỉ giao hàng và số điện thoại');
@@ -38,6 +38,8 @@ class OrderController {
 
                 totalPrice += item.quantity * item.computer.price;
             }
+
+            const finalAmount = totalPrice - (discountAmount || 0);
 
             const order = new Order({
                 user: userId,
