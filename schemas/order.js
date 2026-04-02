@@ -12,15 +12,25 @@ const Order = new Schema({
         required: true
     },
 
+    shippingAddress: {
+        type: String,
+        required: true
+    },
+
+    couponCode: {
+        type: String,
+        default: null
+    },
+
     status: {
         type: String,
         enum: ["UNPAID", "PENDING", "CONFIRMED", "SHIPPING", "DELIVERED", "CANCELLED"],
         default: "UNPAID"
     },
-
-    shippingAddress: {
-        type: String,
-        required: true
+    
+    discountAmount: {
+        type: Number,
+        default: 0
     },
 
     phone: {
