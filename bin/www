@@ -25,7 +25,7 @@ var server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Cho phép Frontend (cổng 5173) kết nối tới
+    origin: "http://localhost:5173", 
     methods: ["GET", "POST"]
   }
 });
@@ -36,16 +36,12 @@ global.io = io;
 io.on("connection", (socket) => {
   console.log("Một người dùng vừa kết nối Socket:", socket.id);
 
-  // 1. Khi Khách hoặc Admin mở khung chat -> Cho họ vào chung 1 "Phòng" (Room)
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
     console.log(`[Socket] User ${socket.id} đã tham gia phòng chat: ${chatId}`);
   });
 
-  // 2. Khi có người nhắn tin -> Bắn tin nhắn đó cho người kia ngay lập tức
   socket.on("send_message", (data) => {
-    // data sẽ chứa nội dung tin nhắn, người gửi, máy tính đang hỏi...
-    // Lệnh io.to().emit() sẽ phát tin nhắn này tới tất cả những ai đang ở trong phòng chatId
     io.to(data.chatId).emit("receive_message", data);
   });
 
@@ -54,7 +50,6 @@ io.on("connection", (socket) => {
     console.log("Một người dùng đã ngắt kết nối:", socket.id);
   });
 });
-// =======================================================
 
 /**
  * Listen on provided port, on all network interfaces.
