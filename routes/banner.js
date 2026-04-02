@@ -1,14 +1,36 @@
 const express = require('express');
 const router = express.Router();
 const bannerController = require('../controllers/bannerController');
-const upload = require('../middlewares/upload'); // Tận dụng lại bộ upload ảnh của bạn
+const upload = require('../middlewares/upload');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorize = require('../middlewares/authorize');
 
-// PUBLIC: Ai vào web cũng xem được banner
-router.get('/', bannerController.getAll);
 
-// PRIVATE: Chỉ Admin mới được upload banner mới
-router.post('/', authMiddleware, authorize('admin'), upload.single('image'), bannerController.create);
+// PUBLIC: Lấy banner
+router.get('/', async (req, res) => {
+    try {
+        const banners = await bannerController.getAll();
+        res.status(200).json(banners);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+// PRIVATE: Tạo banner
+router.post(
+    '/',
+    authMiddleware,
+    authorize('admin'),
+    upload.single('image'),
+    async (req, res) => {
+        try {
+            const banner = await bannerController.create(req.body, req.file);
+            res.status(201).json(banner);
+        } catch (error) {
+            res.status(400).json({ message: error.message });
+        }
+    }
+);
 
 module.exports = router;
