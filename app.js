@@ -48,6 +48,7 @@ app.use('/api/cart', cartRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/banners', bannerRouter);
 app.use('/api/reviews', require('./routes/review'));
+app.use('/api/notifications', require('./routes/notification'));
 
 mongoose.connect('mongodb://localhost:27017/may_tinh');
 mongoose.connection.on('connected', function () {
