@@ -1,126 +1,66 @@
+// category.controller.js
 const Category = require('../schemas/category');
- const Computer = require('../schemas/computer');
+const Computer = require('../schemas/computer');
+
 class CategoryController {
-    // [POST] /categories
-    async create(req, res) {
-        try {
-            const category = new Category(req.body);
-            await category.save();
-            res.status(201).json(category);
-        } catch (error) {
-            res.status(400).json({ message: error.message });
-        }
+
+    async create(data) {
+        const category = new Category(data);
+        return await category.save();
     }
-    // [GET] /categories
-    async getAll(req, res) {
-        try {
-            const categories = await Category.find();
-            res.status(200).json(categories);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async getAll() {
+        return await Category.find();
     }
-    // [GET] /categories/:slug
-    //lấy categories
-    async getBySlug(req, res) {
-        try {
-            const categories = await Category.findOne({ slug: req.params.slug });
-            res.status(200).json(categories);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async getBySlug(slug) {
+        return await Category.findOne({ slug });
     }
-    //lấy những categories bị xóa mềm 
-    async update(req, res) {
-        try {
-            const category = await Category.findOneAndUpdate({ slug: req.params.slug }, req.body, { new: true });
-            res.status(200).json(category);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async update(slug, data) {
+        return await Category.findOneAndUpdate({ slug }, data, { new: true });
     }
-    //xóa mèm
-    async delete(req, res) {
-        try {
-            const category = await Category.delete({ slug: req.params.slug });
-            res.status(200).json(category);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async delete(slug) {
+        return await Category.delete({ slug });
     }
-    // khôi phục
-    async restore(req, res) {
-        try {
-            const category = await Category.restore({ slug: req.params.slug });
-            res.status(200).json(category);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async restore(slug) {
+        return await Category.restore({ slug });
     }
-    // xóa vĩnh viễn
-    async forceDelete(req, res) {
-        try {
-            const category = await Category.findOneAndDelete({ slug: req.params.slug });
-            res.status(200).json(category);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async forceDelete(slug) {
+        return await Category.findOneAndDelete({ slug });
     }
-    async getTrash(req, res) {
-        try {
-            const categories = await Category.findDeleted();
-            res.status(200).json(categories);
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+    async getTrash() {
+        return await Category.findDeleted();
     }
-    // Tìm kiếm theo tên hoặc slug
-    async search(req, res) {
-        try {
-           const data = await Category.find({
-                $or: [
-                    { name: { $regex: req.params.key, $options: 'i' } }
-                ]
-            });
-            res.status(200).json(data);
+
+    async search(key) {
+        return await Category.find({
+            $or: [
+                { name: { $regex: key, $options: 'i' } }
+            ]
+        });
     }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
-    }
-    // Tìm kiếm category và lấy tất cả computer của category đó
-    async searchWithComputers(req, res) {
-        try {
-            const category = await Category.findOne({
-                $or: [
-                    { name: { $regex: req.params.key, $options: 'i' } },
-                    { slug: { $regex: req.params.key, $options: 'i' } }
-                ]
-            }).select('_id name description slug');
-            
-            if (!category) {
-                return res.status(404).json({ message: 'Không tìm thấy danh mục' });
-            }
-            
-            const computers = await Computer.find({ category: category._id })
+
+    async searchWithComputers(key) {
+        const category = await Category.findOne({
+            $or: [
+                { name: { $regex: key, $options: 'i' } },
+                { slug: { $regex: key, $options: 'i' } }
+            ]
+        }).select('_id name description slug');
+
+        if (!category) throw new Error('Không tìm thấy danh mục');
+
+        const computers = await Computer.find({ category: category._id })
             .select('name price image slug -_id')
             .populate('category', 'name slug -_id');
-            
-            res.status(200).json({
-                category,
-                computers
-            });
-        }
-        catch (error) {
-            res.status(500).json({ message: error.message });
-        }
+
+        return { category, computers };
     }
 }
+
 module.exports = new CategoryController();
