@@ -6,7 +6,6 @@ const authMiddleware = require('../middlewares/authMiddleware')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
 
-// API ĐĂNG KÝ
 router.post('/register', async function (req, res) {
     try {
         const { username, password, email, fullname, phone, address } = req.body;
@@ -31,7 +30,7 @@ router.post('/register', async function (req, res) {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         await authController.createUser({
             username,
             password: hashedPassword,
@@ -48,7 +47,6 @@ router.post('/register', async function (req, res) {
     }
 });
 
-// API ĐĂNG NHẬP
 router.post('/login', async function (req, res) {
     try {
         const { email, password, rememberMe } = req.body;
@@ -78,14 +76,15 @@ router.post('/login', async function (req, res) {
                 phone: user.phone,
                 address: user.address,
                 role: user.role.name,
+                avatar: user.avatar
             }
         });
     }
-    catch (error) {res.status(500).json({ message: 'Lỗi server' });
+    catch (error) {
+        res.status(500).json({ message: 'Lỗi server' });
     }
 });
 
-// API ĐỔI MẬT KHẨU
 router.put('/change-password', authMiddleware, async function (req, res) {
     try {
         const { oldPassword, newPassword } = req.body;
@@ -106,7 +105,7 @@ router.put('/change-password', authMiddleware, async function (req, res) {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
-        
+
         await authController.saveUser(user);
         res.status(200).json({ message: 'Đổi mật khẩu thành công' });
     }
@@ -115,7 +114,6 @@ router.put('/change-password', authMiddleware, async function (req, res) {
     }
 });
 
-// API LẤY PROFILE
 router.get('/profile', authMiddleware, async function (req, res) {
     try {
         const userId = req.user.userId;
@@ -127,19 +125,19 @@ router.get('/profile', authMiddleware, async function (req, res) {
     }
 });
 
-// API CẬP NHẬT PROFILE
 router.put('/profile', authMiddleware, async function (req, res) {
     try {
         const userId = req.user.userId;
         const { fullname, phone, address, gender, dob, avatar } = req.body;
 
         const updateData = {};
-        if (fullname) updateData.fullname = fullname;
-        if (phone) updateData.phone = phone;
-        if (address) updateData.address = address;
-        if (gender) updateData.gender = gender;
-        if (dob) updateData.dob = dob;
-        if (avatar) updateData.avatar = avatar;
+
+        if (fullname !== undefined) updateData.fullname = fullname;
+        if (phone !== undefined) updateData.phone = phone;
+        if (address !== undefined) updateData.address = address;
+        if (gender !== undefined) updateData.gender = gender;
+        if (dob !== undefined) updateData.dob = dob;
+        if (avatar !== undefined) updateData.avatar = avatar;
 
         const user = await authController.updateUserById(userId, updateData);
 
@@ -149,7 +147,6 @@ router.put('/profile', authMiddleware, async function (req, res) {
     }
 });
 
-// API UPLOAD AVATAR
 router.post('/upload-avatar', authMiddleware, upload.single('avatar'), async function (req, res) {
     try {
         if (!req.file) {

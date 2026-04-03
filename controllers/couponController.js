@@ -1,20 +1,22 @@
 const Coupon = require('../schemas/coupon');
 
-module.exports = {
-    FindCouponByCode: async (code) => {
-        return await Coupon.findOne({ code: code.toUpperCase() });
-    },
-    
-    FindActiveCoupons: async () => {
+class CouponController {
+    async findCouponByCode(code) {
+        return await Coupon.findOne({ code: code });
+    }
+
+    async findActiveCoupons() {
         return await Coupon.find({ isActive: true });
-    },
+    }
 
-    IncrementCouponUsage: async (couponId) => {
-        return await Coupon.findByIdAndUpdate(couponId, { $inc: { usedCount: 1 } }, { new: true });
-    },
+    async updateCouponById(couponId, updateData) {
+        return await Coupon.findByIdAndUpdate(couponId, updateData, { new: true });
+    }
 
-    CreateCoupon: async (couponData) => {
-        const coupon = new Coupon(couponData);
+    async createCoupon(data) {
+        const coupon = new Coupon(data);
         return await coupon.save();
     }
-};
+}
+
+module.exports = new CouponController();
