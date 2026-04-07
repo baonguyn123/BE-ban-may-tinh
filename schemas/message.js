@@ -18,7 +18,6 @@ const Message = new Schema({
     computer: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Computer",
-        required: true
     }
 }, {
     timestamps: true

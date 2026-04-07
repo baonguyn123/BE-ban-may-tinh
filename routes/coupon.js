@@ -1,141 +1,178 @@
 const express = require('express');
 const router = express.Router();
-
 const Order = require('../schemas/order');
 const couponController = require('../controllers/couponController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const authorize = require('../middlewares/authorize'); // Bổ sung quyền Admin
 
-router.post('/create', authMiddleware, async function (req, res, next) {
+router.post('/', authMiddleware, authorize('admin'), async function (req, res) {
     try {
-        // Trong thực tế bạn có thể check req.user.role == 'admin' ở đây
-        let newCoupon = await couponController.CreateCoupon(req.body);
-        res.send(newCoupon);
+        let newCoupon = await couponController.createCoupon(req.body);
+        res.status(201).send(newCoupon);
     } catch (error) {
         res.status(400).send({ message: "Lỗi tạo mã: " + error.message });
     }
 });
 
-router.get('/', authMiddleware, async function (req, res, next) {
-    let userId = req.user.userId;
-    let coupons = await couponController.FindActiveCoupons();
-    let validCoupons = [];
-    let now = Date.now();
+router.get('/all', authMiddleware, authorize('admin'), async function (req, res) {
+    try {
+        let coupons = await couponController.getAllCoupons();
+        res.status(200).send(coupons);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+});
 
-    for (let i = 0; i < coupons.length; i++) {
-        let c = coupons[i];
-        
-        // Kiểm tra thời gian hiệu lực
-        let validFrom = new Date(c.validFrom).getTime();
-        let validUntil = new Date(c.validUntil).getTime();
-        if (now < validFrom || now > validUntil) {
-            continue; 
+router.put('/:id', authMiddleware, authorize('admin'), async function (req, res) {
+    try {
+        let updated = await couponController.updateCouponById(req.params.id, req.body);
+        if (!updated) return res.status(404).send({ message: "Không tìm thấy mã" });
+        res.status(200).send(updated);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+});
+
+router.delete('/:id', authMiddleware, authorize('admin'), async function (req, res) {
+    try {
+        let deleted = await couponController.deleteCouponById(req.params.id);
+        if (!deleted) return res.status(404).send({ message: "Không tìm thấy mã để xóa" });
+        res.status(200).send({ message: "Xóa thành công" });
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+});
+
+
+router.get('/', authMiddleware, async function (req, res) {
+    try {
+        let userId = req.user.userId;
+        let coupons = await couponController.findActiveCoupons();
+        let validCoupons = [];
+        let now = new Date().getTime(); // Dùng getTime để so sánh số nguyên cho dễ
+
+        for (let i = 0; i < coupons.length; i++) {
+            let c = coupons[i];
+            let validFrom = new Date(c.validFrom).getTime();
+            let validUntil = new Date(c.validUntil).getTime();
+
+            if (now < validFrom || now > validUntil) continue; // Lọc ngày 
+            if (c.usageLimit !== null && c.usedCount >= c.usageLimit) continue; // Lọc lượt dùng
+            if (c.applicableUsers && c.applicableUsers.length > 0) { // Mã chỉ định
+                let isApplicable = false;
+                for (let j = 0; j < c.applicableUsers.length; j++) {
+                    if (c.applicableUsers[j].toString() === userId.toString()) {
+                        isApplicable = true;
+                        break;
+                    }
+                }
+                if (isApplicable === false) continue;
+            }
+            validCoupons.push(c);
+        }
+        res.send(validCoupons);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+});
+
+router.post('/apply', authMiddleware, async function (req, res) {
+    try {
+        let code = req.body.code;
+        let orderValue = req.body.orderValue;
+        let userId = req.user.userId;
+
+        let coupon = await couponController.findCouponByCode(code);
+
+        if (!coupon) return res.status(404).send({ message: "Mã giảm giá không tồn tại" });
+        if (coupon.isActive === false) return res.status(400).send({ message: "Mã giảm giá đã bị khóa" });
+
+        let now = new Date().getTime();
+        let validFrom = new Date(coupon.validFrom).getTime();
+        let validUntil = new Date(coupon.validUntil).getTime();
+
+        if (now < validFrom || now > validUntil) return res.status(400).send({ message: "Mã giảm giá hết hạn" }); // Kiểm tra quá hạn
+        if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) return res.status(400).send({ message: "Mã đã hết lượt dùng hệ thống" }); // Kiểm tra lượt dùng
+        if (orderValue < coupon.minOrderValue) return res.status(400).send({ message: "Chưa đạt giá trị đơn tối thiểu" }); // Kiểm tra giá trị
+
+        // Lấy hết đơn hàng có user dùng mã này 
+        let userOrders = await Order.find({ user: userId, couponCode: coupon.code });
+        let userUsedCount = 0;
+
+        for (let i = 0; i < userOrders.length; i++) {
+            if (userOrders[i].status !== 'CANCELLED') {
+                userUsedCount = userUsedCount + 1;
+            }
         }
 
-        // Kiểm tra giới hạn lượt dùng
-        if (c.usageLimit !== null && c.usedCount >= c.usageLimit) {
-            continue; 
-        }
-
-        // Kiểm tra user có được phép dùng mã này không 
-        if (c.applicableUsers && c.applicableUsers.length > 0) {
+        if (userUsedCount >= coupon.userUsageLimit) return res.status(400).send({ message: "Bạn đã hết lượt sử dụng mã này!" });
+        if (coupon.applicableUsers && coupon.applicableUsers.length > 0) {
             let isApplicable = false;
-            for (let j = 0; j < c.applicableUsers.length; j++) {
-                if (c.applicableUsers[j].toString() === userId.toString()) {
+            for (let i = 0; i < coupon.applicableUsers.length; i++) {
+                if (coupon.applicableUsers[i].toString() === userId.toString()) {
                     isApplicable = true;
                     break;
                 }
             }
-            if (isApplicable === false) {
-                continue; 
+            if (isApplicable === false) return res.status(400).send({ message: "Bạn không có quyền dùng mã này" });
+        }
+
+        // Tính tiền giảm
+        let discountAmount = 0;
+        if (coupon.discountType === 'FIXED') {
+            discountAmount = coupon.discountValue;
+        } else if (coupon.discountType === 'PERCENTAGE') {
+            discountAmount = orderValue * (coupon.discountValue / 100);
+            if (coupon.maxDiscountAmount !== null && discountAmount > coupon.maxDiscountAmount) {
+                discountAmount = coupon.maxDiscountAmount;
             }
         }
 
-        validCoupons.push(c);
+        res.send({ message: "Áp dụng thành công", discountAmount: discountAmount, couponCode: coupon.code });
+    } catch (error) {
+        res.status(500).send({ message: error.message });
     }
-
-    res.send(validCoupons);
 });
 
-router.post('/apply', authMiddleware, async function (req, res, next) {
-    let code = req.body.code;
-    let orderValue = req.body.orderValue; // Tổng tiền giỏ hàng FE gửi lên
-    let userId = req.user.userId;
+router.post('/gift', authMiddleware, authorize('admin'), async function (req, res) {
+    try {
+        let userId = req.body.userId;
+        let couponCode = req.body.couponCode;
+        let coupon = await couponController.findCouponByCode(couponCode);
 
-    let coupon = await couponController.FindCouponByCode(code);
+        if (!userId || !couponCode) {
+            return res.status(400).send({ message: "Vui lòng cung cấp ID người dùng và Mã giảm giá" });
+        }
 
-    if (!coupon) {
-        res.status(404).send({ message: "Mã giảm giá không tồn tại" });
-        return;
-    }
+        if (!coupon) {
+            return res.status(404).send({ message: "Mã giảm giá này không tồn tại" });
+        }
+        if (coupon.isActive === false) {
+            return res.status(400).send({ message: "Mã giảm giá này đang bị khóa, không thể tặng!" });
+        }
 
-    if (coupon.isActive === false) {
-        res.status(400).send({ message: "Mã giảm giá đã bị khóa" });
-        return;
-    }
+        if (!coupon.applicableUsers) {
+            coupon.applicableUsers = [];
+        }
 
-    let now = Date.now();
-    let validFrom = new Date(coupon.validFrom).getTime();
-    let validUntil = new Date(coupon.validUntil).getTime();
-
-    if (now < validFrom || now > validUntil) {
-        res.status(400).send({ message: "Mã giảm giá không trong thời gian sử dụng" });
-        return;
-    }
-
-    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-        res.status(400).send({ message: "Mã giảm giá đã hết lượt sử dụng" });
-        return;
-    }
-
-    if (orderValue < coupon.minOrderValue) {
-        res.status(400).send({ message: "Đơn hàng chưa đạt giá trị tối thiểu để dùng mã này" });
-        return;
-    }
-
-    let userUsedCount = await Order.countDocuments({
-        user: userId,
-        couponCode: coupon.code,
-        status: { $ne: 'CANCELLED' } // Không tính các đơn đã hủy
-    });
-
-    if (userUsedCount >= coupon.userUsageLimit) {
-        res.status(400).send({ message: "Bạn đã hết lượt sử dụng mã giảm giá này!" });
-        return;
-    }
-
-    // Kiểm tra user tri ân
-    if (coupon.applicableUsers && coupon.applicableUsers.length > 0) {
-        let isApplicable = false;
+        let isAlreadyAdded = false;
         for (let i = 0; i < coupon.applicableUsers.length; i++) {
             if (coupon.applicableUsers[i].toString() === userId.toString()) {
-                isApplicable = true;
+                isAlreadyAdded = true;
                 break;
             }
         }
-        if (isApplicable === false) {
-            res.status(400).send({ message: "Bạn không có quyền sử dụng mã này" });
-            return;
-        }
-    }
 
-    // Tính tiền được giảm
-    let discountAmount = 0;
-    
-    if (coupon.discountType === 'FIXED') {
-        discountAmount = coupon.discountValue;
-    } 
-    else if (coupon.discountType === 'PERCENTAGE') {
-        discountAmount = orderValue * (coupon.discountValue / 100);
-        if (coupon.maxDiscountAmount !== null && discountAmount > coupon.maxDiscountAmount) {
-            discountAmount = coupon.maxDiscountAmount;
+        if (isAlreadyAdded === true) {
+            return res.status(400).send({ message: "Khách hàng này đã có tên trong danh sách nhận mã!" });
         }
-    }
+        coupon.applicableUsers.push(userId);
+        await couponController.updateCouponById(coupon._id, { applicableUsers: coupon.applicableUsers });
 
-    res.send({ 
-        message: "Áp dụng mã thành công",
-        discountAmount: discountAmount,
-        couponCode: coupon.code
-    });
+        res.status(200).send({ message: "Đã tặng mã giảm giá cho khách hàng thành công!" });
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
 });
 
 module.exports = router;

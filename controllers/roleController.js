@@ -1,13 +1,16 @@
-const Role = require('../schemas/role')
-class RoleController{
-    async create(req, res) {
-        try {
-            const role = new Role(req.body);
-            await role.save();
-            res.status(201).json(role);
-        } catch (error) {
-            res.status(400).json({ message: error.message });
-        }
+const Role = require('../schemas/role');
+
+class RoleController {
+    // Trả dữ liệu, không gọi res
+    async create(data) {
+            const role = new Role(data);
+            return await role.save();
+    }
+
+    // Nếu muốn có hàm getAll
+    async getAll() {
+       return await Role.find();
     }
 }
+
 module.exports = new RoleController();

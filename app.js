@@ -26,14 +26,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/images', express.static('uploads'));
 
+const admin = require('./controllers/createAdminController');
+const userRoutes = require('./routes/users');
+const roleRouter = require('./routes/role');
 const bannerRouter = require('./routes/banner');
 const categoryRouter = require('./routes/category');
 const computerRouter = require('./routes/computer');
-const roleRouter = require('./routes/role');
 const cartRouter = require('./routes/cart');
 const orderRouter = require('./routes/order');
-const admin = require('./controllers/createAdminController');
 const authRouter = require('./routes/auth');
 const chatRouter = require('./routes/chat');
 const paymentRoute = require("./routes/paymentRoutes")
@@ -50,6 +52,10 @@ app.use('/api/banners', bannerRouter);
 app.use('/api/reviews', require('./routes/review'));
 app.use('/api/notifications', require('./routes/notification'));
 app.use('/api/coupons', require('./routes/coupon'));
+app.use('/api/stores', require('./routes/store'));
+app.use('/api/users', userRoutes);
+
+app.use('/api/admin/stats', require('./routes/adminStats'));
 
 mongoose.connect('mongodb://localhost:27017/may_tinh');
 mongoose.connection.on('connected', function () {

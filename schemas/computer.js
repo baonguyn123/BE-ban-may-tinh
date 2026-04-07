@@ -4,7 +4,6 @@ const mongooseDelete = require('mongoose-delete');
 mongoose.plugin(slug);
 const Schema = mongoose.Schema;
 
-// BẮT ĐẦU CỤC OBJECT 1: Định nghĩa các cột
 const Computer = new Schema({
     name: { type: String, required: true },
     price: { type: Number, required: true },
@@ -37,7 +36,6 @@ const Computer = new Schema({
         required: true
     }
 },
-    // BẮT ĐẦU CỤC OBJECT 2: Cài đặt Options (CHÚ Ý DẤU PHẨY Ở TRÊN)
     {
         timestamps: true
     });

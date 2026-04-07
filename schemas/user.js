@@ -47,6 +47,10 @@ const User = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Role',
         required: true
+    },
+    isLocked: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

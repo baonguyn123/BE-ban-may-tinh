@@ -22,12 +22,17 @@ const Order = new Schema({
         default: null
     },
 
+    paymentMethod: {
+        type: String,
+        default: "VNPAY"
+    },
+
     status: {
         type: String,
         enum: ["UNPAID", "PENDING", "CONFIRMED", "SHIPPING", "DELIVERED", "CANCELLED"],
         default: "UNPAID"
     },
-    
+
     discountAmount: {
         type: Number,
         default: 0
@@ -42,7 +47,12 @@ const Order = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
-    }
+    },
+
+    cancelReason: {
+        type: String,
+        default: null
+    },
 
 }, {
     timestamps: true
